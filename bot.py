@@ -33,7 +33,7 @@ import openai
 '''
 #
 
-openai.api_key = 'sk-jEHPwAEyS80PmZTlHq6' + 'LT3BlbkFJvVEnsYaN8mSGTZ3ECm6z' # Free tier key, sharable
+openai.api_key = 'sk-MwU7sftXkBhDYwi003Fi' + 'T3BlbkFJLLRwa4YoPNb2ueEe1VCY' # Free tier key, sharable
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 intents = discord.Intents.default()
@@ -49,6 +49,51 @@ async def on_ready():
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(e)
+
+
+
+
+
+welcome_enabled = True  # initially the welcome messages are enabled
+
+
+
+@bot.tree.command(name='toggle_welcome')
+@commands.has_permissions(administrator=True)  # only allow administrators to run this command
+async def toggle_welcome(ctx):
+    global welcome_enabled
+    welcome_enabled = not welcome_enabled
+    status = "enabled" if welcome_enabled else "disabled"
+    await ctx.response.send_message(f"Welcome DMs have been {status}.")
+
+
+
+
+@bot.event
+async def on_member_join(member):
+    global welcome_enabled
+    if welcome_enabled:
+
+        embed = discord.Embed(
+            title="Welcome to Computing Councils of Canada",
+            description=(
+                "We are delighted to have you join us. "
+                "This community is focused on bringing together "
+                "all enthusiasts and professionals related to computing. "
+                "Here, we discuss, share, and learn about various computing topics. "
+                "Feel free to explore, engage in discussions, and most importantly, "
+                "have fun! If you have any questions, don't hesitate to ask."
+            ),
+            color=0x1a384c,
+        )
+        embed.set_thumbnail(url="https://media.licdn.com/dms/image/C4E0BAQFZ83Q-ryJyYw/company-logo_200_200/0/1612553017924?e=2147483647&v=beta&t=gQtTxgENMUZilwaIRFW-UVbVkEdX0W7HdhFmDXj5Kng")
+        await message.author.send(embed=embed)
+
+
+
+
+
+
 
 
 class IgnoreButton(discord.ui.Button):
@@ -110,24 +155,24 @@ class MessageView(discord.ui.View):
 async def on_message(message):
     if message.author == bot.user:
         return
-
+        
     # Create a conversation with the model
     # The prompt makes the model very eager to flag messages - maybe turn down the intensity to avoid randomly flagging ppl? ¯\_(ツ)_/¯
+    empty = "{" + "}"
     conversation = [
-        {"role": "system", "content": "You are a content review model. Your task is to review incoming messages and determine if they should be flagged for review. If a message is flagged, explain what parts were flagged and why. Only derogatory messages with clear malice should be flagged, ones made in good faith can remain unflagged."},
-        {"role": "user", "content": "hi"},
-        {"role": "assistant", "content": '{"flagged":false}'},
-        {"role": "user", "content": "what's your github? i'll add you there."},
-        {"role": "assistant", "content": '{"flagged":false}'},
-        {"role": "user", "content": "Sure you can check my js stuff there its https://github.com/stevejobs"},
-        {"role": "assistant", "content": '{"flagged":false}'},
-        {"role": "user", "content": "bro you're actually so stupid and dumb and a dummy poopy head and you should actually go back to grade 1 like why would you think javascript is a good language"},
+        {"role": "system", "content": "You are a content review model. Your task is to review incoming messages and determine if they should be flagged for review. If a message is flagged, explain what parts were flagged and why. Only derogatory messages with clear malice should be flagged, ones made in good faith can remain unflagged. Respond ONLY in the correct format, your only two options are empty brackets and flagged=true, sections and the reason in JSON format."},
+        {"role": "user", "content": "Check message: hi"},
+        {"role": "assistant", "content": empty},
+        {"role": "user", "content": "Check message: what's your github? i'll add you there."},
+        {"role": "assistant", "content": empty},
+        {"role": "user", "content": "Check message: Sure you can check my js stuff there its https://github.com/stevejobs"},
+        {"role": "assistant", "content": empty},
+        {"role": "user", "content": "Check message: bro you're actually so stupid and dumb and a dummy poopy head and you should actually go back to grade 1 like why would you think javascript is a good language"},
         {"role": "assistant", "content": '{"flagged":true,"sections":["stupid and dumb","dummy poopy head","go back to grade 1"],"reason":"The user\'s statement includes highly offensive language, personal attacks, and derogatory remarks."}'},
-        {"role": "user", "content": "??? What?"},
-        {"role": "assistant", "content": '{"flagged":false}'},
-        {"role": "user", "content": message.content}
+        {"role": "user", "content": "Check message: ??? What?"},
+        {"role": "assistant", "content": empty},
+        {"role": "user", "content": "Check message: " + message.content}
     ]
-
     # Generate a response from the model
     response = openai.ChatCompletion.create(
       model="gpt-3.5-turbo",
@@ -136,10 +181,10 @@ async def on_message(message):
 
     # Get the model's reply
     model_reply = response['choices'][0]['message']['content']
-
+  
     resp = json.loads(model_reply)
     # If the model decides to flag the message
-    if resp['flagged'] == True:
+    if 'flagged' in resp:
         guild = discord.utils.get(bot.guilds, name='Computing Councils of Canada - Internal')
         channel = discord.utils.get(guild.channels, name='bot-test')
 
@@ -344,6 +389,9 @@ async def check_events():
             # Remove the event from the list
             events.remove(event)
 
+
+# For notifying about club meetings, coding competitions,
+# hackathons, guest lectures, workshops, etc.
 @bot.tree.command(name='queue_event',description="queue an event")
 async def queue_event(interaction: discord.Interaction, event_time: str, roles: str, title: str, description: str):
     guild = discord.utils.get(bot.guilds, name='Computing Councils of Canada - Internal')
@@ -413,7 +461,7 @@ async def delete(interaction: discord.Interaction, *, name: str):
     await interaction.response.send_message(f'Deleting channel: {name}')
     channel = discord.utils.get(interaction.guild.channels, name=name)
     await channel.delete()
-
+ 
 # admin only command to create roles
 
 
